@@ -1,0 +1,3 @@
+web: gunicorn kraftwear.wsgi --log-file -
+worker: celery -A kraftwear worker --loglevel=info
+release: python manage.py migrate
