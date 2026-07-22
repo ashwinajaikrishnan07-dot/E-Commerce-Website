@@ -10,11 +10,7 @@ export function SceneEnvironment() {
   return (
     <>
       {/* HDRI environment map for PBR reflections */}
-      <Environment
-        preset="studio"
-        background={false}
-        environmentIntensity={0.6}
-      />
+      <Environment preset="city" background={false} />
 
       {/* Contact shadows — soft ground shadow beneath the mannequin */}
       <ContactShadows

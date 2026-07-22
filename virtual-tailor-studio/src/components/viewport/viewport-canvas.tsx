@@ -1,105 +1,87 @@
 "use client";
 
-import { Suspense, useCallback } from "react";
+import { Suspense, useCallback, useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
-import { Preload, AdaptiveDpr, AdaptiveEvents, Stats } from "@react-three/drei";
+import { Preload, AdaptiveDpr, AdaptiveEvents } from "@react-three/drei";
 import * as THREE from "three";
-import { SceneLighting } from "./scene-lighting";
-import { SceneEnvironment } from "./scene-environment";
 import { DemoMannequin } from "./demo-mannequin";
 import { CameraController } from "./camera-controller";
-import { PostProcessing } from "./post-processing";
 import { GroundPlane } from "./ground-plane";
 import { ViewportLoader } from "./viewport-loader";
 import { useViewportStore, useUIStore } from "@/store";
 import type { BodyRegion } from "@/types";
 
-// ============================================================
-// VIEWPORT CANVAS
-// Main 3D rendering canvas. Orchestrates all scene components.
-// Performance-optimized with adaptive DPR and event handling.
-// ============================================================
-
 interface ViewportCanvasProps {
   className?: string;
-  showStats?: boolean;
 }
 
-export function ViewportCanvas({ className, showStats = false }: ViewportCanvasProps) {
+export function ViewportCanvas({ className }: ViewportCanvasProps) {
   const qualityLevel = useViewportStore((s) => s.qualityLevel);
-  const openCustomizationPanel = useUIStore((s) => s.openCustomizationPanel);
-  const focusOnRegion = useViewportStore((s) => s.focusOnRegion);
 
-  // DPR mapping based on quality level
-  const dprRange: [number, number] = (() => {
-    switch (qualityLevel) {
-      case "low": return [0.5, 1];
-      case "medium": return [0.75, 1.5];
-      case "high": return [1, 2];
-      case "ultra": return [1.5, 2.5];
-      default: return [1, 2];
-    }
-  })();
+  // Suppress Three.js deprecation warnings
+  useEffect(() => {
+    const origWarn = console.warn;
+    console.warn = (...args: unknown[]) => {
+      const msg = typeof args[0] === "string" ? args[0] : "";
+      if (msg.includes("THREE.") && msg.includes("deprecated")) return;
+      if (msg.includes("cannot be represented")) return;
+      origWarn.apply(console, args);
+    };
+    return () => { console.warn = origWarn; };
+  }, []);
 
-  const handleRegionClick = useCallback(
-    (region: BodyRegion) => {
-      focusOnRegion(region);
-      openCustomizationPanel();
-    },
-    [focusOnRegion, openCustomizationPanel]
-  );
+  const dprRange: [number, number] =
+    qualityLevel === "low" ? [0.5, 1] :
+    qualityLevel === "medium" ? [0.75, 1.5] :
+    qualityLevel === "ultra" ? [1.5, 2.5] : [1, 2];
 
   return (
-    <div className={className}>
+    <div className={className} style={{ width: "100%", height: "100%" }}>
       <Canvas
         shadows
         dpr={dprRange}
-        camera={{
-          position: [0, 1.2, 3.5],
-          fov: 45,
-          near: 0.1,
-          far: 100,
-        }}
+        camera={{ position: [0, 1.2, 2.8], fov: 40, near: 0.1, far: 50 }}
         gl={{
           antialias: true,
           toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.1,
+          toneMappingExposure: 1.2,
           outputColorSpace: THREE.SRGBColorSpace,
-          powerPreference: "high-performance",
         }}
-        style={{ background: "transparent" }}
+        onCreated={({ scene, gl }) => {
+          scene.background = new THREE.Color("#0d0d14");
+          gl.setClearColor("#0d0d14", 1);
+        }}
       >
-        {/* Performance optimizations */}
         <AdaptiveDpr pixelated />
         <AdaptiveEvents />
 
-        {/* Camera controls */}
+        {/* Camera */}
         <CameraController />
 
-        {/* Environment and lighting */}
-        <SceneEnvironment />
-        <SceneLighting />
+        {/* Lighting — premium 3-point setup */}
+        <ambientLight intensity={0.35} color="#e8e0ff" />
+        <directionalLight
+          position={[4, 8, 5]}
+          intensity={1.5}
+          color="#ffffff"
+          castShadow
+          shadow-mapSize-width={1024}
+          shadow-mapSize-height={1024}
+          shadow-bias={-0.0001}
+        />
+        <directionalLight position={[-3, 4, -3]} intensity={0.4} color="#e8e0ff" />
+        <pointLight position={[0, 3, -4]} intensity={0.5} color="#ffeedd" distance={10} />
+        <pointLight position={[0, -0.5, 2]} intensity={0.15} color="#faf5ff" distance={5} />
 
-        {/* Main content with loading fallback */}
+        {/* Mannequin */}
         <Suspense fallback={<ViewportLoader />}>
-          {/* 
-            Production: <MannequinModel onRegionClick={handleRegionClick} />
-            Development: Using procedural demo mannequin 
-          */}
           <DemoMannequin />
         </Suspense>
 
-        {/* Helpers */}
+        {/* Grid (toggleable) */}
         <GroundPlane />
 
-        {/* Post-processing */}
-        <PostProcessing />
-
-        {/* Preload assets */}
         <Preload all />
-
-        {/* Dev stats */}
-        {showStats && <Stats />}
       </Canvas>
     </div>
   );

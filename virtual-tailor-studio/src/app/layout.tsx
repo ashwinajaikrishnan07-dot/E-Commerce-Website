@@ -48,7 +48,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${inter.variable} dark`} suppressHydrationWarning>
-      <body className="min-h-screen bg-[#0a0a0f] text-white antialiased font-sans selection:bg-violet-500/30 selection:text-white">
+      <body
+        className="min-h-screen bg-[#0a0a0f] text-white antialiased font-sans selection:bg-violet-500/30 selection:text-white"
+        suppressHydrationWarning
+      >
         <Providers>{children}</Providers>
       </body>
     </html>
